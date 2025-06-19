@@ -1,1 +1,53 @@
-*.pyc
+# ROS2 (colcon) build directories
+
+build/
+install/
+log/
+
+# CMake intermediate files
+
+CMakeFiles/
+CMakeCache.txt
+cmake\_install.cmake
+Makefile
+compile\_commands.json
+
+# Catkin (if migrating or mixing)
+
+devel/
+devel\_isolated/
+\*.catkin\_workspace
+
+# ROS install overlay files
+
+.rosinstall
+\*.rosinstall.repos
+
+# Python
+
+**pycache**/
+\*.py\[cod]
+\*.egg
+\*.egg-info/
+.venv/
+env/
+
+# IDEs and editors
+
+.vscode/
+.idea/
+\*.swp
+\*\~
+
+# OS generated files
+
+.DS\_Store
+Thumbs.db
+
+# Logs and temporary files
+
+\*.log
+
+# Coverage
+
+coverage/
