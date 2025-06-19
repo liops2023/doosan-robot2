@@ -12,6 +12,11 @@
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <!-- ros2_control core -->
+  <depend>ros2_control</depend>
+  <depend>ros2_control_core</depend>
+
+  <depend>moveit_ros_planning_interface</depend>
 
   <depend>control_msgs</depend>
   <depend>ament_index_cpp</depend>
