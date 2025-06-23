@@ -76,7 +76,7 @@ Build the package:
 
 ```bash
 cd ~/ros2_ws
-colcon build
+colcon build # if stderr occured for dsr_control2 and dsr_hardware2, try re-build.
 . install/setup.bash
 ```
 
