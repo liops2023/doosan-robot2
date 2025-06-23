@@ -87,7 +87,8 @@ endif()
 
 if($ENV{ROS_DISTRO} STREQUAL "humble")                          
   LINK_DIRECTORIES ("${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
-  message(STATUS "Using library path: ${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
+  message(STATUS "Using library path:")
+  message(STATUS "  Common: ${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
 else()
   message("Unknown ROS distro:")
   message($ENV{ROS_DISTRO})
@@ -112,12 +113,13 @@ add_library(
   # src/dsr_connection_node2.cpp
 )
 target_compile_definitions(${PROJECT_NAME} PUBLIC DRCF_VERSION=${DRCF_VER})
+target_compile_definitions(dsr_hardware2 PRIVATE BOOST_BIND_GLOBAL_PLACEHOLDERS)
 target_compile_features(dsr_hardware2 PUBLIC cxx_std_17)
 target_include_directories(dsr_hardware2 PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/dsr_hardware2>
 )
-target_link_libraries(dsr_hardware2 yaml-cpp)
+
 ament_target_dependencies(
   dsr_hardware2 
   ${HW_IF_INCLUDE_DEPENDS}
