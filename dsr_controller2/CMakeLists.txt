@@ -21,6 +21,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp_components
   ament_index_cpp
   yaml-cpp
+  dsr_common2
 )
 
 find_package(ament_cmake REQUIRED)
@@ -50,8 +51,21 @@ include_directories(
 
 LINK_LIBRARIES(DRFL PocoFoundation PocoNet)
 
+# Detect CPU architecture and set appropriate library path
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  set(CPU_ARCH "aarch64")
+  message(STATUS "ARM64 architecture detected, using aarch64 libraries")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+  set(CPU_ARCH "x86_64")
+  message(STATUS "x86_64 architecture detected, using x86_64 libraries")
+else()
+  message(WARNING "Unknown architecture: ${CMAKE_SYSTEM_PROCESSOR}, defaulting to x86_64")
+  set(CPU_ARCH "x86_64")
+endif()
+
 if($ENV{ROS_DISTRO} STREQUAL "humble")                          
-  LINK_DIRECTORIES ("${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/x86_64")
+  LINK_DIRECTORIES ("${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
+  message(STATUS "Using library path: ${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
 else()
   message("Unknown ROS distro:")
   message($ENV{ROS_DISTRO})

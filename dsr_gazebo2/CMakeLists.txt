@@ -4,6 +4,15 @@
 cmake_minimum_required(VERSION 3.5)
 project(dsr_gazebo2)
 
+# Check if running on ARM64 architecture and skip build
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  message(STATUS "ARM64 architecture detected. dsr_gazebo2 is not supported on ARM64.")
+  message(STATUS "Skipping dsr_gazebo2 package build...")
+  find_package(ament_cmake REQUIRED)
+  ament_package()
+  return()
+endif()
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()

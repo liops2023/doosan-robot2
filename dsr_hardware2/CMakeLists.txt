@@ -16,12 +16,14 @@ set(HW_IF_INCLUDE_DEPENDS
   controller_manager
   ament_index_cpp
   yaml-cpp
+  dsr_common2
 )
 set(REF_GEN_INCLUDE_DEPENDS
   kdl_parser
   rclcpp
   std_msgs
   trajectory_msgs
+  dsr_common2
 )
 set(CONTROLLER_INCLUDE_DEPENDS
   pluginlib
@@ -29,6 +31,7 @@ set(CONTROLLER_INCLUDE_DEPENDS
   controller_interface
   realtime_tools
   trajectory_msgs
+  dsr_common2
 )
 
 # find dependencies
@@ -70,8 +73,21 @@ SET( SRC_FILES
 
 LINK_LIBRARIES(DRFL PocoFoundation PocoNet)
 
+# Detect CPU architecture and set appropriate library path
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  set(CPU_ARCH "aarch64")
+  message(STATUS "ARM64 architecture detected, using aarch64 libraries")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+  set(CPU_ARCH "x86_64")
+  message(STATUS "x86_64 architecture detected, using x86_64 libraries")
+else()
+  message(WARNING "Unknown architecture: ${CMAKE_SYSTEM_PROCESSOR}, defaulting to x86_64")
+  set(CPU_ARCH "x86_64")
+endif()
+
 if($ENV{ROS_DISTRO} STREQUAL "humble")                          
-  LINK_DIRECTORIES ("${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/x86_64")
+  LINK_DIRECTORIES ("${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
+  message(STATUS "Using library path: ${COMMON_LIB_FILES}/$ENV{ROS_DISTRO}/${CPU_ARCH}")
 else()
   message("Unknown ROS distro:")
   message($ENV{ROS_DISTRO})
