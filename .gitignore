@@ -12,6 +12,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!dsr_common2/lib/
 lib64/
 parts/
 sdist/
