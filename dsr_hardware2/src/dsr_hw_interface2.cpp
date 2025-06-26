@@ -321,9 +321,11 @@ return_type DRHWInterface::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 {
 	if(mode == "real") {
 		const LPRT_OUTPUT_DATA_LIST data = Drfl.read_data_rt();
+		// Joint order mapping: Hardware [j1,j2,j4,j5,j3,j6] -> URDF [j1,j2,j3,j4,j5,j6]
+		int joint_mapping[6] = {0, 1, 3, 4, 3, 5};
 		for(int i=0;i<6;i++) {
-			joint_position_[i] = static_cast<float>(data->actual_joint_position[i] * (M_PI / 180.0f));
-			joint_velocities_[i] = static_cast<float>(data->actual_joint_velocity[i] * (M_PI / 180.0f));
+			joint_position_[i] = static_cast<float>(data->actual_joint_position[joint_mapping[i]] * (M_PI / 180.0f));
+			joint_velocities_[i] = static_cast<float>(data->actual_joint_velocity[joint_mapping[i]] * (M_PI / 180.0f));
 		}
 	}else if(mode == "virtual") {
 		LPROBOT_POSE pose = Drfl.GetCurrentPose();
@@ -389,10 +391,29 @@ return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &d
 
 		float pos[6];
 		float targetVel[6];
-		for(int i=0;i<6;i++) {
-			pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
-			targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI));
+
+		if (mode == "virtual") {
+			// In virtual mode, joint order will be crooked.
+			// The joint order is not same as URDF joint order.
+			for (int i = 0; i < 6; i++) {
+				pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
+				targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI));
+			}
 		}
+		else if (mode == "real") {
+			// In real mode, joint order is same as URDF joint order.
+			for (int i = 0; i < 6; i++) {
+				// Reverse joint order mapping: URDF [j1,j2,j3,j4,j5,j6] -> Hardware [j1,j2,j4,j5,j3,j6]
+				int reverse_joint_mapping[6] = {0, 1, 3, 4, 2, 5}; // Swap j3 and j4
+				pos[reverse_joint_mapping[i]] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
+				targetVel[reverse_joint_mapping[i]] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI));
+			}
+		} else {
+			RCLCPP_ERROR(rclcpp::get_logger("dsr_hw_interface2"), 
+					"'mode' is neither 'real' nor 'virtual.'" );
+			return return_type::ERROR;
+		}
+
 		if(mode == "real") {
 			float margin = 1.5; // Setted margin since most host aren't RT. 
 			float acc[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Complied with internal profile.
