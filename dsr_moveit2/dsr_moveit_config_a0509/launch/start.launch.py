@@ -157,7 +157,7 @@ def generate_launch_description():
         output="both",
     )
 
-    robot_state_pub_node = Node(
+    robot_state_pub_node = Node( # /joint_states -> /tf
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
