@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(dsr_moveit_config_a0509)
 find_package(ament_cmake REQUIRED)
-find_package(trac_ik_kinematics_plugin REQUIRED)
 
 ament_package()
 
