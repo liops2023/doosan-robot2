@@ -6,6 +6,9 @@
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
       
+      # dsr_moveit_controller:  # Re-enabled for traditional MoveIt usage
+      #   type: joint_trajectory_controller/JointTrajectoryController
+
       dsr_moveit_controller:
         type: joint_trajectory_controller/JointTrajectoryController
 
@@ -20,6 +23,9 @@
 
       dsr_position_controller:
         type: forward_command_controller/ForwardCommandController
+      
+      joint_group_velocity_controller:
+        type: velocity_controllers/JointGroupVelocityController
 
 joint_state_broadcaster:
   ros__parameters:
@@ -115,3 +121,21 @@ dsr_moveit_controller:
       joint_6:
         trajectory: 1.0
         goal: 0.03
+
+# Velocity controller for MoveIt Servo
+joint_group_velocity_controller:
+  ros__parameters:
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    
+    # Interface configuration
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
