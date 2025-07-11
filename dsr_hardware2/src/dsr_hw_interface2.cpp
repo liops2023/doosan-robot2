@@ -303,6 +303,7 @@ std::vector<hardware_interface::CommandInterface> DRHWInterface::export_command_
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
     pre_joint_position_command_ = joint_position_command_;
+		pre_joint_velocities_command_ = joint_velocities_command_;
 	for(size_t i=0; i<joint_comm_interfaces["position"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["position"][i], "position", &joint_position_command_[i]);
 	}
@@ -358,6 +359,13 @@ bool positionCommandRunning(const std::vector<double>& lhs, const std::vector<do
 	return var >= 0.0001;
 }
 
+bool velocityCommandRunning(const std::vector<double>& lhs, const std::vector<double>& rhs) {
+	double var = 0;
+	for(size_t i=0; i<lhs.size(); i++) {
+		var += abs(lhs[i] - rhs[i]);
+	}
+	return var >= 0.0001;
+}
 vector<vector<float>> joint_position_commands;
 return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &dt)
 {
@@ -378,7 +386,8 @@ return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &d
 	//         ,joint_velocities_command_[5]);
 	static bool idle = false;
 	// TODO: this seems to be a workaround. refer to hardware design of 'prepare_command_mode_switch'
-	if(positionCommandRunning(pre_joint_position_command_, joint_position_command_)) {
+	if(positionCommandRunning(pre_joint_position_command_, joint_position_command_) ||
+			velocityCommandRunning(pre_joint_velocities_command_, joint_velocities_command_)) {
 		if(true == idle) {
 			// This is workaround to overcome issues :
 			// move_joint (drfl) API internally sent safety_off right after moving. 
@@ -406,10 +415,12 @@ return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &d
 			Drfl.amovej(pos, target_vel_acc, target_vel_acc); // Workaround. needed updated.
 		}
 		pre_joint_position_command_ = joint_position_command_;
+		pre_joint_velocities_command_ = joint_velocities_command_;
 		return return_type::OK;
 	}
 	idle = true;
 	pre_joint_position_command_ = joint_position_command_;
+	pre_joint_velocities_command_ = joint_velocities_command_;
 	return return_type::OK;
 }
 
