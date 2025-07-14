@@ -366,24 +366,25 @@ bool velocityCommandRunning(const std::vector<double>& lhs, const std::vector<do
 	}
 	return var >= 0.0001;
 }
+
 vector<vector<float>> joint_position_commands;
 return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &dt)
 {
 	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] dt  : %.3f", float(dt.seconds()) );
-	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
-	//         ,joint_position_command_[0]
-	//         ,joint_position_command_[1]
-	//         ,joint_position_command_[2]
-	//         ,joint_position_command_[3]
-	//         ,joint_position_command_[4]
-	//         ,joint_position_command_[5]);
-	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
-	//         ,joint_velocities_command_[0]
-	//         ,joint_velocities_command_[1]
-	//         ,joint_velocities_command_[2]
-	//         ,joint_velocities_command_[3]
-	//         ,joint_velocities_command_[4]
-	//         ,joint_velocities_command_[5]);
+	RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	        ,joint_position_command_[0] - joint_position_[0]
+	        ,joint_position_command_[1] - joint_position_[1]
+	        ,joint_position_command_[2] -	joint_position_[2]
+	        ,joint_position_command_[3] - joint_position_[3]
+	        ,joint_position_command_[4] - joint_position_[4]
+	        ,joint_position_command_[5] - joint_position_[5]);
+	RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	        ,joint_velocities_command_[0]
+	        ,joint_velocities_command_[1]
+	        ,joint_velocities_command_[2]
+	        ,joint_velocities_command_[3]
+	        ,joint_velocities_command_[4]
+	        ,joint_velocities_command_[5]);
 	static bool idle = false;
 	// TODO: this seems to be a workaround. refer to hardware design of 'prepare_command_mode_switch'
 	if(positionCommandRunning(pre_joint_position_command_, joint_position_command_) ||
@@ -396,23 +397,48 @@ return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &d
 			Drfl.set_safety_mode(SAFETY_MODE_AUTONOMOUS,SAFETY_MODE_EVENT_MOVE);
 			idle = false;
 		}
-
-		float pos[6];
-		float targetVel[6];
 		
-		for (int i = 0; i < 6; i++) {
-			pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
-			targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI));
-		}
+		// Safety scaling factor for velocity commands
+		float velocity_scale = 0.1f; // 10% for safety testing
+		
+		if(!positionCommandRunning(pre_joint_position_command_, joint_position_command_)) {
+			// Use speedj_rt for pure velocity control (no position dependency)
+			float targetVel[6];
+			float targetAcc[6];
+			
+			// Use internal acceleration profile (similar to servoj_rt approach)
+			// Setting acceleration to 0.0 lets the controller use its internal profile
+			
+			for(size_t i = 0; i < 6; i++) {
+				targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI) * velocity_scale);
+				targetAcc[i] = 0.0f; // Use internal acceleration profile for consistency with servoj_rt
+			}
+			
+			if(mode == "real") {
+				float targetTime = static_cast<float>(dt.seconds() * 1.5); // Margin for non-RT systems
+				Drfl.speedj_rt(targetVel, targetAcc, targetTime);
+				RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), 
+					"[speedj_rt] vel: {%.2f, %.2f, %.2f, %.2f, %.2f, %.2f}, time: %.3f",
+					targetVel[0], targetVel[1], targetVel[2], targetVel[3], targetVel[4], targetVel[5], targetTime);
+			}
+		} else {
+			// Use servoj_rt for position control (existing behavior)
+			float pos[6];
+			float targetVel[6];
+			
+			for(size_t i = 0; i < joint_position_command_.size(); i++) {
+				pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
+				targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI) * velocity_scale);
+			}
 
-		if(mode == "real") {
-			float margin = 1.5; // Setted margin since most host aren't RT. 
-			float acc[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Complied with internal profile.
-			Drfl.servoj_rt(pos, targetVel, acc, float(dt.seconds() * margin));
-		}
-		else { // "virtual"
-			float target_vel_acc[6] = {70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f};
-			Drfl.amovej(pos, target_vel_acc, target_vel_acc); // Workaround. needed updated.
+			if(mode == "real") {
+				float margin = 1.5; // Setted margin since most host aren't RT. 
+				float acc[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Complied with internal profile.
+				Drfl.servoj_rt(pos, targetVel, acc, float(dt.seconds() * margin));
+			} else { // "virtual"
+				float target_vel_acc[6] = {70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f};
+				Drfl.amovej(pos, target_vel_acc, target_vel_acc); // Workaround. needed updated.
+			}
 		}
 		pre_joint_position_command_ = joint_position_command_;
 		pre_joint_velocities_command_ = joint_velocities_command_;

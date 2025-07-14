@@ -41,7 +41,6 @@
 #ifndef BOOST_BIND_GLOBAL_PLACEHOLDERS // this is to avoid a warning about redefinition of BOOST_BIND_GLOBAL_PLACEHOLDERS
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #endif
-#endif
 #include <boost/thread/thread.hpp>
 #include <array>
 #include <algorithm>  // std::copy
