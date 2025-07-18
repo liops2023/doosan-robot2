@@ -371,14 +371,14 @@ vector<vector<float>> joint_position_commands;
 return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &dt)
 {
 	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] dt  : %.3f", float(dt.seconds()) );
-	RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
 	        ,joint_position_command_[0] - joint_position_[0]
 	        ,joint_position_command_[1] - joint_position_[1]
 	        ,joint_position_command_[2] -	joint_position_[2]
 	        ,joint_position_command_[3] - joint_position_[3]
 	        ,joint_position_command_[4] - joint_position_[4]
 	        ,joint_position_command_[5] - joint_position_[5]);
-	RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
 	        ,joint_velocities_command_[0]
 	        ,joint_velocities_command_[1]
 	        ,joint_velocities_command_[2]
