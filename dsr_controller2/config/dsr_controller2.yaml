@@ -156,10 +156,12 @@ cartesian_motion_controller:
     # Position interface for cartesian motion control
     command_interfaces:
       - position
+      - velocity
     
     state_interfaces:
       - position
       - velocity
+      - effort
     
     # Solver parameters
     solver:

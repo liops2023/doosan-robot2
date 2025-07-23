@@ -311,10 +311,11 @@ std::vector<hardware_interface::CommandInterface> DRHWInterface::export_command_
 		command_interfaces.emplace_back(joint_comm_interfaces["velocity"][i], "velocity", &joint_velocities_command_[i]);
 	}
 	// NOTE: effort interface is not supported by Doosan robot hardware
-	// Effort interface export is disabled to prevent segmentation fault
+	/*
 	for(size_t i=0; i<joint_comm_interfaces["effort"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["effort"][i], "effort", &joint_effort_command_[i]);
 	}
+	*/
   return command_interfaces;
 }
 
