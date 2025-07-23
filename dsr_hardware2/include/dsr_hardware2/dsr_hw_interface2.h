@@ -79,7 +79,7 @@ protected:
     std::vector<double> pre_joint_velocities_command_;
     std::vector<double> joint_position_;
     std::vector<double> joint_velocities_;
-    std::vector<double> joint_effort_; /* not used*/
+    std::vector<double> joint_effort_;
 
     std::vector<double> ft_states_;
     std::vector<double> ft_command_;

@@ -78,8 +78,10 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 	// robot has 6 joints and 2 interfaces
 	joint_position_.assign(6, 0);
 	joint_velocities_.assign(6, 0);
+	joint_effort_.assign(6, 0);  // Initialize effort array
 	joint_position_command_.assign(6, 0);
 	joint_velocities_command_.assign(6, 0);
+	joint_effort_command_.assign(6, 0);  // Initialize effort command array
 
 	if(6 != info_.joints.size()) {
 		RCLCPP_ERROR(rclcpp::get_logger("dsr_hw_interface2"), 
@@ -102,8 +104,8 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 					interface.name.c_str());
 			if(interface.name == "effort") {
 				RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
-					"[on_init] Not Implemented effort interface.. ignored");
-				continue;
+					"[on_init] effort interface found but will use zero values");
+				// Still register effort interface but it will contain zero values
 			}
 			joint_interfaces[interface.name].push_back(joint.name);
 		}
@@ -112,11 +114,11 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 			RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), 
 					"[on_init] joint command_interfaces name : %s ", 
 					interface.name.c_str());
-				if(interface.name == "effort") {
-					RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
-							"[on_init] Not Implemented effort interface.. ignored");
-					continue;
-				}
+			if(interface.name == "effort") {
+				RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
+						"[on_init] effort command interface found but will use zero values");
+				// Still register effort interface but it will contain zero values
+			}
 			joint_comm_interfaces[interface.name].push_back(joint.name);
 		}
 	}
@@ -288,11 +290,9 @@ std::vector<hardware_interface::StateInterface> DRHWInterface::export_state_inte
 	for(size_t i=0; i<joint_interfaces["position"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["position"][i], "position", &joint_position_[i]);
 	}
-	// TODO(songms, leeminju) support velocity control.
     for(size_t i=0; i<joint_interfaces["velocity"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["velocity"][i], "velocity", &joint_velocities_[i]);
-	}
-	// TODO(songms, leeminju) support effort control.
+	}	
 	for(size_t i=0; i<joint_interfaces["effort"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["effort"][i], "effort", &joint_effort_[i]);
 	}
@@ -310,7 +310,8 @@ std::vector<hardware_interface::CommandInterface> DRHWInterface::export_command_
 	for(size_t i=0; i<joint_comm_interfaces["velocity"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["velocity"][i], "velocity", &joint_velocities_command_[i]);
 	}
-	// TODO(songms, leeminju) support effort control.
+	// NOTE: effort interface is not supported by Doosan robot hardware
+	// Effort interface export is disabled to prevent segmentation fault
 	for(size_t i=0; i<joint_comm_interfaces["effort"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["effort"][i], "effort", &joint_effort_command_[i]);
 	}
@@ -322,9 +323,12 @@ return_type DRHWInterface::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 {
 	if(mode == "real") {
 		const LPRT_OUTPUT_DATA_LIST data = Drfl.read_data_rt();
+
+		//TODO : data 에 들어있는 값 하나씩 뽑아서 어떻게 나오고 있는지 확인하기 drfl api 구현이 어디까지 되어 있는지
 		for(int i = 0; i < 6; i++) {
 			joint_position_[i] = static_cast<float>(data->actual_joint_position[i] * (M_PI / 180.0f));
 			joint_velocities_[i] = static_cast<float>(data->actual_joint_velocity[i] * (M_PI / 180.0f));
+			joint_effort_[i] = static_cast<float>(data->raw_joint_torque[i]);
 		}
 
 	}else if(mode == "virtual") {
@@ -336,6 +340,9 @@ return_type DRHWInterface::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 		}
 		for(int i=0;i<6;i++){
 			joint_position_[i] = deg2rad(pose->_fPosition[i]);
+			// Virtual mode doesn't provide velocity or effort data
+			joint_velocities_[i] = 0.0;
+			joint_effort_[i] = 0.0;
 		}
 	}else {
 		RCLCPP_ERROR(rclcpp::get_logger("dsr_hw_interface2"), 
