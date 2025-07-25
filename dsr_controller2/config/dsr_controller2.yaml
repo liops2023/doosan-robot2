@@ -171,9 +171,9 @@ cartesian_motion_controller:
     
     # PD gains for each Cartesian axis
     pd_gains:
-      trans_x: {p: 5.0, d: 0.5}
-      trans_y: {p: 5.0, d: 0.5}
-      trans_z: {p: 5.0, d: 0.5}
-      rot_x: {p: 2.0, d: 0.2}
-      rot_y: {p: 2.0, d: 0.2}
-      rot_z: {p: 2.0, d: 0.2}
+      trans_x: {p: 7.0, d: 0.1}
+      trans_y: {p: 7.0, d: 0.1}
+      trans_z: {p: 7.0, d: 0.1}
+      rot_x: {p: 3.0, d: 0.1}
+      rot_y: {p: 3.0, d: 0.1}
+      rot_z: {p: 3.0, d: 0.1}

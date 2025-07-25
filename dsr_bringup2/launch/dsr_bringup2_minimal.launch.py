@@ -148,12 +148,12 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "-c", "controller_manager"],
     )
 
-    robot_controller_spawner = Node(
-        package="controller_manager",
-        namespace=LaunchConfiguration('name'),
-        executable="spawner",
-        arguments=["dsr_controller2", "-c", "controller_manager"],
-    )
+    #robot_controller_spawner = Node(
+    #    package="controller_manager",
+    #    namespace=LaunchConfiguration('name'),
+    #    executable="spawner",
+    #    arguments=["dsr_controller2", "-c", "controller_manager"],
+    #)
     
     # joint_trajectory_controller_spawner = Node(
     #     package="controller_manager",
@@ -168,7 +168,7 @@ def generate_launch_description():
     nodes = [
         run_emulator_node,
         robot_state_pub_node,
-        robot_controller_spawner,
+        # robot_controller_spawner,
         joint_state_broadcaster_spawner,
         control_node,
     ]
