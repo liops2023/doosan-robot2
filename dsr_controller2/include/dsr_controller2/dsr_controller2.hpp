@@ -25,7 +25,7 @@
 #include "rclcpp/timer.hpp"
 #include "rclcpp_lifecycle/lifecycle_publisher.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
-#include "realtime_tools/realtime_buffer.h"
+#include "realtime_tools/realtime_buffer.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 
