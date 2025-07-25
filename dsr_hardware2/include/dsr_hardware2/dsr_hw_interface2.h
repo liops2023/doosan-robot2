@@ -38,7 +38,9 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#ifndef BOOST_BIND_GLOBAL_PLACEHOLDERS // this is to avoid a warning about redefinition of BOOST_BIND_GLOBAL_PLACEHOLDERS
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
+#endif
 #include <boost/thread/thread.hpp>
 #include <array>
 #include <algorithm>  // std::copy
@@ -74,9 +76,10 @@ protected:
     std::vector<double> joint_velocities_command_;
     std::vector<double> joint_effort_command_; /* not used*/
     std::vector<double> pre_joint_position_command_;
+    std::vector<double> pre_joint_velocities_command_;
     std::vector<double> joint_position_;
     std::vector<double> joint_velocities_;
-    std::vector<double> joint_effort_; /* not used*/
+    std::vector<double> joint_effort_;
 
     std::vector<double> ft_states_;
     std::vector<double> ft_command_;

@@ -78,8 +78,10 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 	// robot has 6 joints and 2 interfaces
 	joint_position_.assign(6, 0);
 	joint_velocities_.assign(6, 0);
+	joint_effort_.assign(6, 0);  // Initialize effort array
 	joint_position_command_.assign(6, 0);
 	joint_velocities_command_.assign(6, 0);
+	joint_effort_command_.assign(6, 0);  // Initialize effort command array
 
 	if(6 != info_.joints.size()) {
 		RCLCPP_ERROR(rclcpp::get_logger("dsr_hw_interface2"), 
@@ -102,8 +104,8 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 					interface.name.c_str());
 			if(interface.name == "effort") {
 				RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
-					"[on_init] Not Implemented effort interface.. ignored");
-				continue;
+					"[on_init] effort interface found but will use zero values");
+				// Still register effort interface but it will contain zero values
 			}
 			joint_interfaces[interface.name].push_back(joint.name);
 		}
@@ -112,11 +114,11 @@ CallbackReturn DRHWInterface::on_init(const hardware_interface::HardwareInfo & i
 			RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), 
 					"[on_init] joint command_interfaces name : %s ", 
 					interface.name.c_str());
-				if(interface.name == "effort") {
-					RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
-							"[on_init] Not Implemented effort interface.. ignored");
-					continue;
-				}
+			if(interface.name == "effort") {
+				RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), 
+						"[on_init] effort command interface found but will use zero values");
+				// Still register effort interface but it will contain zero values
+			}
 			joint_comm_interfaces[interface.name].push_back(joint.name);
 		}
 	}
@@ -288,11 +290,9 @@ std::vector<hardware_interface::StateInterface> DRHWInterface::export_state_inte
 	for(size_t i=0; i<joint_interfaces["position"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["position"][i], "position", &joint_position_[i]);
 	}
-	// TODO(songms, leeminju) support velocity control.
     for(size_t i=0; i<joint_interfaces["velocity"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["velocity"][i], "velocity", &joint_velocities_[i]);
-	}
-	// TODO(songms, leeminju) support effort control.
+	}	
 	for(size_t i=0; i<joint_interfaces["effort"].size(); i++) {
 		state_interfaces.emplace_back(joint_interfaces["effort"][i], "effort", &joint_effort_[i]);
 	}
@@ -303,16 +303,19 @@ std::vector<hardware_interface::CommandInterface> DRHWInterface::export_command_
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
     pre_joint_position_command_ = joint_position_command_;
+		pre_joint_velocities_command_ = joint_velocities_command_;
 	for(size_t i=0; i<joint_comm_interfaces["position"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["position"][i], "position", &joint_position_command_[i]);
 	}
 	for(size_t i=0; i<joint_comm_interfaces["velocity"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["velocity"][i], "velocity", &joint_velocities_command_[i]);
 	}
-	// TODO(songms, leeminju) support effort control.
+	// NOTE: effort interface is not supported by Doosan robot hardware
+	/*
 	for(size_t i=0; i<joint_comm_interfaces["effort"].size(); i++) {
 		command_interfaces.emplace_back(joint_comm_interfaces["effort"][i], "effort", &joint_effort_command_[i]);
 	}
+	*/
   return command_interfaces;
 }
 
@@ -321,9 +324,12 @@ return_type DRHWInterface::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 {
 	if(mode == "real") {
 		const LPRT_OUTPUT_DATA_LIST data = Drfl.read_data_rt();
+
+		//TODO : data 에 들어있는 값 하나씩 뽑아서 어떻게 나오고 있는지 확인하기 drfl api 구현이 어디까지 되어 있는지
 		for(int i = 0; i < 6; i++) {
 			joint_position_[i] = static_cast<float>(data->actual_joint_position[i] * (M_PI / 180.0f));
 			joint_velocities_[i] = static_cast<float>(data->actual_joint_velocity[i] * (M_PI / 180.0f));
+			joint_effort_[i] = static_cast<float>(data->raw_joint_torque[i]);
 		}
 
 	}else if(mode == "virtual") {
@@ -335,6 +341,9 @@ return_type DRHWInterface::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 		}
 		for(int i=0;i<6;i++){
 			joint_position_[i] = deg2rad(pose->_fPosition[i]);
+			// Virtual mode doesn't provide velocity or effort data
+			joint_velocities_[i] = 0.0;
+			joint_effort_[i] = 0.0;
 		}
 	}else {
 		RCLCPP_ERROR(rclcpp::get_logger("dsr_hw_interface2"), 
@@ -358,27 +367,36 @@ bool positionCommandRunning(const std::vector<double>& lhs, const std::vector<do
 	return var >= 0.0001;
 }
 
+bool velocityCommandRunning(const std::vector<double>& lhs, const std::vector<double>& rhs) {
+	double var = 0;
+	for(size_t i=0; i<lhs.size(); i++) {
+		var += abs(lhs[i] - rhs[i]);
+	}
+	return var >= 0.0001;
+}
+
 vector<vector<float>> joint_position_commands;
 return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &dt)
 {
 	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] dt  : %.3f", float(dt.seconds()) );
-	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
-	//         ,joint_position_command_[0]
-	//         ,joint_position_command_[1]
-	//         ,joint_position_command_[2]
-	//         ,joint_position_command_[3]
-	//         ,joint_position_command_[4]
-	//         ,joint_position_command_[5]);
-	// RCLCPP_INFO(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
-	//         ,joint_velocities_command_[0]
-	//         ,joint_velocities_command_[1]
-	//         ,joint_velocities_command_[2]
-	//         ,joint_velocities_command_[3]
-	//         ,joint_velocities_command_[4]
-	//         ,joint_velocities_command_[5]);
+	RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_position_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	        ,joint_position_command_[0] - joint_position_[0]
+	        ,joint_position_command_[1] - joint_position_[1]
+	        ,joint_position_command_[2] -	joint_position_[2]
+	        ,joint_position_command_[3] - joint_position_[3]
+	        ,joint_position_command_[4] - joint_position_[4]
+	        ,joint_position_command_[5] - joint_position_[5]);
+	RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), "[WRITE] joint_velocities_command_  : {%.3f, %.3f, %.3f, %.3f, %.3f, %.3f}"
+	        ,joint_velocities_command_[0]
+	        ,joint_velocities_command_[1]
+	        ,joint_velocities_command_[2]
+	        ,joint_velocities_command_[3]
+	        ,joint_velocities_command_[4]
+	        ,joint_velocities_command_[5]);
 	static bool idle = false;
 	// TODO: this seems to be a workaround. refer to hardware design of 'prepare_command_mode_switch'
-	if(positionCommandRunning(pre_joint_position_command_, joint_position_command_)) {
+	if(positionCommandRunning(pre_joint_position_command_, joint_position_command_) ||
+			velocityCommandRunning(pre_joint_velocities_command_, joint_velocities_command_)) {
 		if(true == idle) {
 			// This is workaround to overcome issues :
 			// move_joint (drfl) API internally sent safety_off right after moving. 
@@ -387,29 +405,56 @@ return_type DRHWInterface::write(const rclcpp::Time &, const rclcpp::Duration &d
 			Drfl.set_safety_mode(SAFETY_MODE_AUTONOMOUS,SAFETY_MODE_EVENT_MOVE);
 			idle = false;
 		}
-
-		float pos[6];
-		float targetVel[6];
 		
-		for (int i = 0; i < 6; i++) {
-			pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
-			targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI));
-		}
+		// Safety scaling factor for velocity commands
+		float velocity_scale = 0.1f; // 10% for safety testing
+		
+		if(!positionCommandRunning(pre_joint_position_command_, joint_position_command_)) {
+			// Use speedj_rt for pure velocity control (no position dependency)
+			float targetVel[6];
+			float targetAcc[6];
+			
+			// Use internal acceleration profile (similar to servoj_rt approach)
+			// Setting acceleration to 0.0 lets the controller use its internal profile
+			
+			for(size_t i = 0; i < 6; i++) {
+				targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI) * velocity_scale);
+				targetAcc[i] = 0.0f; // Use internal acceleration profile for consistency with servoj_rt
+			}
+			
+			if(mode == "real") {
+				float targetTime = static_cast<float>(dt.seconds() * 1.5); // Margin for non-RT systems
+				Drfl.speedj_rt(targetVel, targetAcc, targetTime);
+				RCLCPP_DEBUG(rclcpp::get_logger("dsr_hw_interface2"), 
+					"[speedj_rt] vel: {%.2f, %.2f, %.2f, %.2f, %.2f, %.2f}, time: %.3f",
+					targetVel[0], targetVel[1], targetVel[2], targetVel[3], targetVel[4], targetVel[5], targetTime);
+			}
+		} else {
+			// Use servoj_rt for position control (existing behavior)
+			float pos[6];
+			float targetVel[6];
+			
+			for(size_t i = 0; i < joint_position_command_.size(); i++) {
+				pos[i] = static_cast<float>(joint_position_command_[i] * (180.0f / M_PI));
+				targetVel[i] = static_cast<float>(joint_velocities_command_[i] * (180.0f / M_PI) * velocity_scale);
+			}
 
-		if(mode == "real") {
-			float margin = 1.5; // Setted margin since most host aren't RT. 
-			float acc[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Complied with internal profile.
-			Drfl.servoj_rt(pos, targetVel, acc, float(dt.seconds() * margin));
-		}
-		else { // "virtual"
-			float target_vel_acc[6] = {70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f};
-			Drfl.amovej(pos, target_vel_acc, target_vel_acc); // Workaround. needed updated.
+			if(mode == "real") {
+				float margin = 1.5; // Setted margin since most host aren't RT. 
+				float acc[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Complied with internal profile.
+				Drfl.servoj_rt(pos, targetVel, acc, float(dt.seconds() * margin));
+			} else { // "virtual"
+				float target_vel_acc[6] = {70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f};
+				Drfl.amovej(pos, target_vel_acc, target_vel_acc); // Workaround. needed updated.
+			}
 		}
 		pre_joint_position_command_ = joint_position_command_;
+		pre_joint_velocities_command_ = joint_velocities_command_;
 		return return_type::OK;
 	}
 	idle = true;
 	pre_joint_position_command_ = joint_position_command_;
+	pre_joint_velocities_command_ = joint_velocities_command_;
 	return return_type::OK;
 }
 
